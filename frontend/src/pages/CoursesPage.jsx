@@ -16,7 +16,7 @@ export default function CoursesPage() {
         setLoading(true)
         setError('')
 
-        const response = await fetch('https://organic-parakeet-w9x5p594gr4hgwv5-5000.app.github.dev/api/senai-courses')
+        const response = await fetch('https://fabrica-plataforma-certificados-backend.onrender.com/api/senai-courses')
         if (!response.ok) throw new Error('Não foi possível carregar os cursos')
 
         const data = await response.json()
