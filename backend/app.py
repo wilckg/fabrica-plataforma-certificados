@@ -1,149 +1,99 @@
+import json
+import os
 import re
-import requests
-from bs4 import BeautifulSoup
 from flask import Flask, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-SENAI_URL = "https://www.sp.senai.br/cursos/0/tecnologia-da-informacao-e-informatica?unidade=135&modalidade=3&gratuito=1"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COURSES_JSON_PATH = os.path.join(BASE_DIR, "courses.json")
 
 
 def clean_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    if text is None:
+        return ""
+    return re.sub(r"\s+", " ", str(text)).strip()
 
 
-def scrape_senai_courses():
-    response = requests.get(
-        SENAI_URL,
-        timeout=20,
-        headers={
-            "User-Agent": "Mozilla/5.0"
-        }
-    )
-    response.raise_for_status()
+def normalize_workload(value: str) -> str:
+    value = clean_text(value)
+    if not value:
+        return ""
 
-    soup = BeautifulSoup(response.text, "lxml")
+    # Remove sobras como "SAIBA MAIS"
+    value = re.sub(r"\bSAIBA MAIS\b", "", value, flags=re.IGNORECASE)
+    value = clean_text(value)
+    return value
 
-    # Coleta links úteis da página
-    links = []
-    for a in soup.find_all("a", href=True):
-        href = a["href"].strip()
-        label = clean_text(a.get_text(" ", strip=True))
-        if href:
-            if href.startswith("/"):
-                href = f"https://www.sp.senai.br{href}"
-            links.append({"label": label, "href": href})
 
-    text_lines = [
-        clean_text(line)
-        for line in soup.get_text("\n", strip=True).splitlines()
-        if clean_text(line)
-    ]
+def convert_js_modal_url(value: str) -> str:
+    value = clean_text(value)
+    if not value:
+        return None
+
+    # Mantém URLs normais como estão
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+
+    # Se vier javascript:openModalInfo(...), preserva o original por enquanto.
+    # Caso depois você descubra a URL final do detalhe, pode trocar essa lógica.
+    return value
+
+
+def load_courses_from_json() -> list[dict]:
+    if not os.path.exists(COURSES_JSON_PATH):
+        raise FileNotFoundError(f"Arquivo não encontrado: {COURSES_JSON_PATH}")
+
+    with open(COURSES_JSON_PATH, "r", encoding="utf-8") as file:
+        raw_courses = json.load(file)
 
     courses = []
     seen_titles = set()
 
-    ignore_exact = {
-        "Saiba Mais",
-        "Inscreva-se",
-        "SENAI ONLINE",
-        "Cursos",
-        "Filtros",
-    }
+    for item in raw_courses:
+        title = clean_text(item.get("nome"))
+        description = clean_text(item.get("descricao"))
+        workload = normalize_workload(item.get("carga_horaria"))
+        details_url = convert_js_modal_url(item.get("detalhe_url"))
+        enroll_url = convert_js_modal_url(item.get("inscricao_url"))
+        source = "SENAI-SP"
 
-    i = 0
-    while i < len(text_lines):
-        line = text_lines[i]
-
-        # Heurística: título seguido de descrição e depois "Carga horária:"
-        if line in ignore_exact:
-            i += 1
+        # Filtra registros ruins/vazios que vieram do JSON
+        if not title:
             continue
 
-        window = text_lines[i:i+8]
-        joined_window = " ".join(window)
+        invalid_titles = {
+            "Aguarde...",
+        }
 
-        if "Carga horária:" in joined_window:
-            title = line
-            description = ""
-            workload = ""
+        if title in invalid_titles:
+            continue
 
-            for j in range(i + 1, min(i + 8, len(text_lines))):
-                current = text_lines[j]
+        if title in seen_titles:
+            continue
 
-                if current.startswith("Carga horária:"):
-                    workload = current.replace("Carga horária:", "").strip()
-                    break
+        # Se a descrição veio muito genérica, usa a área como fallback
+        if not description:
+            description = clean_text(item.get("area")) or "Curso disponível no catálogo do SENAI."
 
-                if current not in ignore_exact and not description:
-                    description = current
-
-            # filtros simples para evitar blocos falsos
-            if (
-                title
-                and len(title) > 5
-                and title.lower() != description.lower()
-                and workload
-                and title not in seen_titles
-            ):
-                related_links = []
-                for item in links:
-                    label = item["label"].lower()
-                    href = item["href"]
-                    if "curso" in href or "inscrev" in label or "saiba" in label:
-                        related_links.append(item)
-
-                details_url = related_links[0]["href"] if related_links else SENAI_URL
-                enroll_url = related_links[1]["href"] if len(related_links) > 1 else SENAI_URL
-
-                courses.append({
-                    "title": title,
-                    "description": description,
-                    "workload": workload,
-                    "details_url": details_url,
-                    "enroll_url": enroll_url,
-                    "source": "SENAI-SP"
-                })
-                seen_titles.add(title)
-
-        i += 1
-
-    # fallback simples caso a heurística principal não monte nada
-    if not courses:
-        pattern_titles = [
-            "Competência Transversal - Lógica de Programação",
-            "Desvendando a Blockchain",
-            "Desvendando o 5G",
-            "Excel Básico",
-            "Ética na Inteligência Artificial",
-            "FluêncIA - Fundamentos da Inteligência Artificial",
-            "Por dentro da Segurança Cibernética",
-        ]
-
-        for idx, line in enumerate(text_lines):
-            if line in pattern_titles and line not in seen_titles:
-                description = ""
-                workload = ""
-
-                for j in range(idx + 1, min(idx + 8, len(text_lines))):
-                    current = text_lines[j]
-                    if current.startswith("Carga horária:"):
-                        workload = current.replace("Carga horária:", "").strip()
-                        break
-                    if current not in ignore_exact and not description:
-                        description = current
-
-                courses.append({
-                    "title": line,
-                    "description": description,
-                    "workload": workload,
-                    "details_url": SENAI_URL,
-                    "enroll_url": SENAI_URL,
-                    "source": "SENAI-SP"
-                })
-                seen_titles.add(line)
+        # Se ainda não houver link de inscrição, mantém null
+        # para o front tratar depois.
+        courses.append({
+            "title": title,
+            "description": description,
+            "workload": workload,
+            "details_url": details_url,
+            "enroll_url": enroll_url,
+            "source": source,
+            "unit": clean_text(item.get("unidade")),
+            "modality": clean_text(item.get("modalidade")),
+            "level": clean_text(item.get("nivel")),
+            "area": clean_text(item.get("area")),
+            "modal_id": item.get("modal_id")
+        })
+        seen_titles.add(title)
 
     return courses
 
@@ -156,11 +106,14 @@ def health():
 @app.route("/api/senai-courses", methods=["GET"])
 def senai_courses():
     try:
-        courses = scrape_senai_courses()
-        return jsonify(courses)
+        courses = load_courses_from_json()
+        return jsonify({
+            "total": len(courses),
+            "courses": courses
+        })
     except Exception as e:
         return jsonify({
-            "error": "Erro ao buscar cursos do SENAI",
+            "error": "Erro ao carregar cursos do arquivo JSON",
             "details": str(e)
         }), 500
 
