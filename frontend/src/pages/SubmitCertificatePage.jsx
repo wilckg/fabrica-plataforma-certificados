@@ -1,35 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HiOutlineCloudArrowUp, HiOutlineDocumentCheck } from 'react-icons/hi2'
 import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
+import rawCourses from '../data/courses.json'
 
 export default function SubmitCertificatePage() {
-  const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
     student_name: '',
-    student_email: '',
+    student_cpf: '',
     course_title: ''
   })
+
   const [file, setFile] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    async function loadCourses() {
-      try {
-        const response = await fetch('http://localhost:5000/api/senai-courses')
-        const data = await response.json()
-        setCourses(data.courses || data)
-      } catch {
-        setCourses([])
-      }
-    }
+  const courses = useMemo(() => {
+    const list = rawCourses.courses || rawCourses
 
-    loadCourses()
+    return list
+      .filter((item) => item.nome !== 'Aguarde...')
+      .map((item) => ({
+        title: item.title || item.nome || 'Curso'
+      }))
   }, [])
 
+  function formatCPF(value) {
+    return value
+      .replace(/\D/g, '')
+      .slice(0, 11)
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+
+    setForm({
+      ...form,
+      [name]: name === 'student_cpf' ? formatCPF(value) : value
+    })
   }
 
   async function handleSubmit(e) {
@@ -40,7 +51,7 @@ export default function SubmitCertificatePage() {
     try {
       const formData = new FormData()
       formData.append('student_name', form.student_name)
-      formData.append('student_email', form.student_email)
+      formData.append('student_cpf', form.student_cpf)
       formData.append('course_title', form.course_title)
       formData.append('certificate', file)
 
@@ -50,14 +61,19 @@ export default function SubmitCertificatePage() {
       })
 
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Erro ao enviar certificado')
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao enviar certificado')
+      }
 
       setMessage('Certificado enviado com sucesso!')
+
       setForm({
         student_name: '',
-        student_email: '',
+        student_cpf: '',
         course_title: ''
       })
+
       setFile(null)
     } catch (err) {
       setError(err.message)
@@ -78,6 +94,7 @@ export default function SubmitCertificatePage() {
           label="Formatos aceitos"
           value="PDF/JPG/PNG"
         />
+
         <StatCard
           icon={<HiOutlineDocumentCheck />}
           label="Validação"
@@ -99,11 +116,12 @@ export default function SubmitCertificatePage() {
 
             <input
               className="input"
-              name="student_email"
-              type="email"
-              placeholder="Seu e-mail"
-              value={form.student_email}
+              name="student_cpf"
+              placeholder="Seu CPF"
+              value={form.student_cpf}
               onChange={handleChange}
+              inputMode="numeric"
+              maxLength="14"
               required
             />
           </div>
@@ -116,6 +134,7 @@ export default function SubmitCertificatePage() {
             required
           >
             <option value="">Selecione um curso</option>
+
             {courses.map((course, index) => (
               <option key={`${course.title}-${index}`} value={course.title}>
                 {course.title}
@@ -123,18 +142,27 @@ export default function SubmitCertificatePage() {
             ))}
           </select>
 
-          <div className="upload-box">
-            <p className="form-help">
-              Envie seu certificado em PDF, PNG ou JPG. Certifique-se de que o arquivo
-              esteja legível.
-            </p>
+          <div className="upload-box custom-upload">
             <input
-              className="input"
+              id="certificate"
+              className="upload-input"
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"
               onChange={(e) => setFile(e.target.files[0])}
               required
             />
+
+            <label htmlFor="certificate" className="upload-label">
+              <HiOutlineCloudArrowUp className="upload-icon" />
+
+              <strong>
+                {file ? file.name : 'Clique para enviar seu certificado'}
+              </strong>
+
+              <span>
+                PDF, PNG ou JPG • arquivo legível
+              </span>
+            </label>
           </div>
 
           <button className="button" type="submit">

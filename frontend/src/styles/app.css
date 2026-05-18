@@ -914,3 +914,50 @@ a {
 .card-actions {
   margin-top: auto;
 }
+
+.custom-upload {
+  border: 2px dashed rgba(0, 103, 177, 0.35);
+  border-radius: 24px;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 103, 177, 0.08),
+    rgba(0, 157, 255, 0.04)
+  );
+  padding: 24px;
+  transition: 0.2s ease;
+}
+
+.custom-upload:hover {
+  border-color: rgba(0, 103, 177, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(0, 103, 177, 0.14);
+}
+
+.upload-input {
+  display: none;
+}
+
+.upload-label {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  color: #003b71;
+}
+
+.upload-icon {
+  font-size: 2.8rem;
+  color: #0067b1;
+}
+
+.upload-label strong {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.upload-label span {
+  font-size: 0.9rem;
+  color: #60758a;
+}
