@@ -1,39 +1,43 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HiOutlineAcademicCap, HiOutlineBolt, HiOutlineUsers } from 'react-icons/hi2'
 import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
 import CourseCard from '../components/CourseCard'
+import rawCourses from '../data/courses.json'
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState([])
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [selectedCourse, setSelectedCourse] = useState(null)
 
-  useEffect(() => {
-    async function loadCourses() {
-      try {
-        setLoading(true)
-        setError('')
+  const courses = useMemo(() => {
+    const list = rawCourses.courses || rawCourses
 
-        const response = await fetch('https://fabrica-plataforma-certificados-backend.onrender.com/api/senai-courses')
-        if (!response.ok) throw new Error('Não foi possível carregar os cursos')
-
-        const data = await response.json()
-        setCourses(data.courses || data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadCourses()
+    return list
+      .filter((item) => item.nome !== 'Aguarde...')
+      .map((item) => ({
+        title: item.title || item.nome || 'Curso',
+        description:
+          item.description ||
+          item.descricao ||
+          item.area ||
+          'Curso disponível no catálogo do SENAI.',
+        workload: String(item.workload || item.carga_horaria || '')
+          .replace(/SAIBA MAIS/gi, '')
+          .trim(),
+        enroll_url: item.enroll_url || item.inscricao_url || null,
+        source: item.source || 'SENAI-SP',
+        unit: item.unit || item.unidade || '',
+        modality: item.modality || item.modalidade || '',
+        level: item.level || item.nivel || '',
+        area: item.area || '',
+      }))
   }, [])
 
   const filteredCourses = useMemo(() => {
+    const term = search.toLowerCase().trim()
+
     return courses.filter((course) =>
-      (course.title || '').toLowerCase().includes(search.toLowerCase())
+      (course.title || '').toLowerCase().includes(term)
     )
   }, [courses, search])
 
@@ -41,8 +45,12 @@ export default function CoursesPage() {
     <section className="page-spacing">
       <div className="hero hero-home fade-in-up">
         <div className="hero-content">
-          <span className="hero-badge">Cursos gratuitos • Certificados • Ranking</span>
+          <span className="hero-badge">
+            Cursos gratuitos • Certificados • Ranking
+          </span>
+
           <h1>Suba de nível com cursos do SENAI</h1>
+
           <p>
             Explore cursos, envie seus certificados e acompanhe sua evolução em uma
             plataforma moderna, jovem e com identidade institucional.
@@ -52,6 +60,7 @@ export default function CoursesPage() {
             <a href="#catalogo" className="button">
               Explorar cursos
             </a>
+
             <a href="/submissoes" className="button-outline">
               Enviar certificado
             </a>
@@ -60,10 +69,17 @@ export default function CoursesPage() {
 
         <div className="hero-side-card">
           <div className="hero-mini-panel">
-            <span className="hero-mini-label">Desafio em andamento</span>
-            <strong>Conclua cursos e avance no ranking</strong>
+            <span className="hero-mini-label">
+              Desafio em andamento
+            </span>
+
+            <strong>
+              Conclua cursos e avance no ranking
+            </strong>
+
             <p>
-              Quanto mais certificados aprovados, maior sua posição na plataforma.
+              Quanto mais certificados aprovados,
+              maior sua posição na plataforma.
             </p>
           </div>
         </div>
@@ -75,11 +91,13 @@ export default function CoursesPage() {
           label="Cursos disponíveis"
           value={courses.length}
         />
+
         <StatCard
           icon={<HiOutlineBolt />}
-          label="Foco em tecnologia"
+          label="Foco em tecnologia e empregabilidade"
           value="100%"
         />
+
         <StatCard
           icon={<HiOutlineUsers />}
           label="Experiência colaborativa"
@@ -105,18 +123,86 @@ export default function CoursesPage() {
         />
       </div>
 
-      {loading && <div className="empty-state">Carregando cursos...</div>}
-      {error && <p className="error">{error}</p>}
-
-      {!loading && !filteredCourses.length ? (
+      {!filteredCourses.length ? (
         <div className="empty-state">
           Nenhum curso encontrado com esse filtro.
         </div>
       ) : (
         <div className="grid">
           {filteredCourses.map((course, index) => (
-            <CourseCard key={`${course.title}-${index}`} course={course} />
+            <CourseCard
+              key={`${course.title}-${index}`}
+              course={course}
+              onSeeMore={() => setSelectedCourse(course)}
+            />
           ))}
+        </div>
+      )}
+
+      {selectedCourse && (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedCourse(null)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              onClick={() => setSelectedCourse(null)}
+            >
+              ×
+            </button>
+
+            <span className="hero-badge">
+              {selectedCourse.modality}
+            </span>
+
+            <h2>{selectedCourse.title}</h2>
+
+            <div className="modal-description">
+              <h4>Sobre o curso</h4>
+
+              <p>
+                {selectedCourse.description ||
+                  'Descrição não disponível para este curso.'}
+              </p>
+            </div>
+
+            <div className="modal-info">
+              <span>
+                <strong>Carga horária:</strong>{' '}
+                {selectedCourse.workload}
+              </span>
+
+              <span>
+                <strong>Unidade:</strong>{' '}
+                {selectedCourse.unit}
+              </span>
+
+              <span>
+                <strong>Nível:</strong>{' '}
+                {selectedCourse.level}
+              </span>
+
+              <span>
+                <strong>Área:</strong>{' '}
+                {selectedCourse.area}
+              </span>
+            </div>
+
+            {selectedCourse.enroll_url && (
+              <a
+                href={selectedCourse.enroll_url}
+                target="_blank"
+                rel="noreferrer"
+                className="button"
+              >
+                Fazer inscrição
+              </a>
+            )}
+          </div>
         </div>
       )}
     </section>
