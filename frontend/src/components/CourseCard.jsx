@@ -11,14 +11,16 @@ export default function CourseCard({ course, onSeeMore }) {
 
   const area = (course.area || '').toLowerCase()
 
-  function getCategoryLabel(titleText) {
+  function getCategoryLabel(titleText, area) {
     const lower = titleText.toLowerCase()
 
-    if (lower.includes('inteligência') || lower.includes('ia')) return 'IA'
+    if (area == "soft skills") return "Administração"
     if (lower.includes('excel')) return 'Produtividade'
     if (lower.includes('segurança')) return 'Cibersegurança'
     if (lower.includes('programação')) return 'Programação'
     if (lower.includes('blockchain')) return 'Inovação'
+    if (lower.includes('tecnologia')) return 'Tecnologia'
+    if (lower.includes('inteligência') || lower.includes('ia')) return 'IA'
 
     return 'Tecnologia'
   }
@@ -29,7 +31,7 @@ export default function CourseCard({ course, onSeeMore }) {
     return 'card-tech'
   }
 
-  const category = getCategoryLabel(title)
+  const category = getCategoryLabel(title, area)
 
   return (
     <article
