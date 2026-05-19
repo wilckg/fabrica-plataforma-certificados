@@ -1,20 +1,39 @@
 import { useEffect, useMemo, useState } from 'react'
-import { HiOutlineTrophy, HiOutlineFire, HiOutlineSparkles } from 'react-icons/hi2'
+import {
+  HiOutlineTrophy,
+  HiOutlineFire,
+  HiOutlineSparkles,
+  HiOutlineUserCircle
+} from 'react-icons/hi2'
+
 import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
+import rankingMock from '../data/rankingMock.json'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 export default function RankingPage() {
   const [ranking, setRanking] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function loadRanking() {
       try {
-        const response = await fetch('http://localhost:5000/api/ranking')
-        const data = await response.json()
-        setRanking(data)
-      } catch {
-        setRanking([])
+        setLoading(true)
+        setError('')
+
+        // const response = await fetch(`${API_URL}/api/ranking`)
+
+        // if (!response.ok) {
+        //   throw new Error('Não foi possível carregar o ranking')
+        // }
+
+        // const data = await response.json()
+        // setRanking(data.ranking || [])
+        setRanking(rankingMock)
+      } catch (err) {
+        setError(err.message)
       } finally {
         setLoading(false)
       }
@@ -24,27 +43,47 @@ export default function RankingPage() {
   }, [])
 
   const top3 = useMemo(() => ranking.slice(0, 3), [ranking])
-  const rest = useMemo(() => ranking.slice(3), [ranking])
+
+  const totalCertificates = useMemo(() => {
+    return ranking.reduce(
+      (total, student) => total + Number(student.valid_certificates || 0),
+      0
+    )
+  }, [ranking])
+
+  const leaderName = ranking[0]?.student_name || '--'
+
+  function formatDate(dateValue) {
+    if (!dateValue) return 'Sem data'
+
+    return new Date(dateValue).toLocaleDateString('pt-BR')
+  }
+
+  function formatConfidence(value) {
+    return `${Number(value || 0).toFixed(1)}%`
+  }
 
   return (
     <section className="page-spacing">
       <SectionTitle
         badge="Ranking"
-        title="Quem está em destaque"
-        subtitle="Acompanhe os alunos com mais certificados aprovados e veja quem está avançando na plataforma."
+        title="Ranking de certificados"
+        subtitle="Acompanhe os alunos com mais certificados válidos na plataforma."
       />
 
       <div className="stats-grid compact-grid fade-in-up">
         <StatCard
           icon={<HiOutlineTrophy />}
-          label="Top posição"
-          value={ranking.length ? `#1` : '--'}
+          label="Líder atual"
+          value={leaderName}
         />
+
         <StatCard
           icon={<HiOutlineFire />}
-          label="Competição ativa"
-          value="Sim"
+          label="Certificados válidos"
+          value={totalCertificates}
         />
+
         <StatCard
           icon={<HiOutlineSparkles />}
           label="Critério"
@@ -52,34 +91,93 @@ export default function RankingPage() {
         />
       </div>
 
-      {loading ? (
-        <div className="empty-state">Carregando ranking...</div>
-      ) : !ranking.length ? (
-        <div className="empty-state">Ainda não há alunos no ranking.</div>
-      ) : (
-        <div className="ranking-shell">
-          <div className="top3 fade-in-up">
-            {top3.map((student, index) => (
-              <div key={student.id || index} className={`podium-card podium-${index + 1}`}>
-                <div className="podium-position">#{index + 1}</div>
-                <h3>{student.name}</h3>
-                <p>{student.total_certificados} certificados aprovados</p>
-              </div>
-            ))}
+      {loading && (
+        <div className="empty-state">
+          Carregando ranking...
+        </div>
+      )}
+
+      {error && (
+        <p className="error">{error}</p>
+      )}
+
+      {!loading && !error && !ranking.length && (
+        <div className="empty-state">
+          Ainda não há certificados válidos para o ranking.
+        </div>
+      )}
+
+      {!loading && !error && !!ranking.length && (
+        <>
+          <div className="ranking-podium fade-in-up">
+            {[top3[1], top3[0], top3[2]]
+              .filter(Boolean)
+              .map((student) => {
+                const medal =
+                  student.position === 1
+                    ? '🥇'
+                    : student.position === 2
+                      ? '🥈'
+                      : '🥉'
+
+                return (
+                  <article
+                    key={`${student.student_cpf}-${student.position}`}
+                    className={`ranking-podium-card podium-${student.position}`}
+                  >
+                    <div className="podium-medal">
+                      {medal}
+                    </div>
+
+                    <span className="ranking-position">
+                      #{student.position}
+                    </span>
+
+                    <HiOutlineUserCircle className="ranking-avatar" />
+
+                    <h3>{student.student_name}</h3>
+
+                    <p>
+                      {student.valid_certificates} certificados válidos
+                    </p>
+                  </article>
+                )
+              })}
           </div>
 
-          <div className="ranking-list fade-in-up">
-            {rest.map((student, index) => (
-              <div key={student.id || index} className="ranking-item">
-                <span className="ranking-item-position">#{index + 4}</span>
-                <span className="ranking-item-name">{student.name}</span>
-                <span className="ranking-item-score">
-                  {student.total_certificados} certificados
-                </span>
-              </div>
-            ))}
+          <div className="ranking-list-card fade-in-up">
+            <h3>Classificação geral</h3>
+
+            <div className="ranking-list">
+              {ranking.map((student) => (
+                <div
+                  key={`${student.student_cpf}-${student.position}`}
+                  className="ranking-row"
+                >
+                  <div className="ranking-row-left">
+                    <span className="ranking-row-position">
+                      #{student.position}
+                    </span>
+
+                    <div>
+                      <strong>{student.student_name}</strong>
+                    </div>
+                  </div>
+
+                  <div className="ranking-row-right">
+                    <strong>
+                      {student.valid_certificates} certificados
+                    </strong>
+
+                    <small>
+                      Último envio: {formatDate(student.last_submission)}
+                    </small>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </section>
   )

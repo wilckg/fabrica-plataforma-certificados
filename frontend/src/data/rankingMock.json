@@ -1,0 +1,74 @@
+[
+  {
+    "position": 1,
+    "student_name": "Ana Beatriz Santos",
+    "student_cpf": "123.456.789-00",
+    "valid_certificates": 8,
+    "total_score": 820,
+    "average_confidence": 97.4,
+    "last_submission": "2026-05-18T14:30:00"
+  },
+  {
+    "position": 2,
+    "student_name": "Lucas Henrique Souza",
+    "student_cpf": "987.654.321-00",
+    "valid_certificates": 7,
+    "total_score": 760,
+    "average_confidence": 95.1,
+    "last_submission": "2026-05-17T19:42:00"
+  },
+  {
+    "position": 3,
+    "student_name": "Mariana Oliveira Lima",
+    "student_cpf": "456.789.123-00",
+    "valid_certificates": 6,
+    "total_score": 690,
+    "average_confidence": 93.8,
+    "last_submission": "2026-05-16T11:15:00"
+  },
+  {
+    "position": 4,
+    "student_name": "Pedro Almeida Costa",
+    "student_cpf": "741.852.963-00",
+    "valid_certificates": 5,
+    "total_score": 610,
+    "average_confidence": 91.7,
+    "last_submission": "2026-05-15T09:50:00"
+  },
+  {
+    "position": 5,
+    "student_name": "Juliana Ferreira",
+    "student_cpf": "258.369.147-00",
+    "valid_certificates": 5,
+    "total_score": 590,
+    "average_confidence": 90.2,
+    "last_submission": "2026-05-14T17:20:00"
+  },
+  {
+    "position": 6,
+    "student_name": "Carlos Eduardo Martins",
+    "student_cpf": "159.357.258-00",
+    "valid_certificates": 4,
+    "total_score": 480,
+    "average_confidence": 88.6,
+    "last_submission": "2026-05-13T13:40:00"
+  },
+  {
+    "position": 7,
+    "student_name": "Fernanda Rocha",
+    "student_cpf": "753.951.456-00",
+    "valid_certificates": 3,
+    "total_score": 390,
+    "average_confidence": 87.1,
+    "last_submission": "2026-05-12T08:10:00"
+  },
+  {
+    "position": 8,
+    "student_name": "Rafael Gomes",
+    "student_cpf": "852.741.963-00",
+    "valid_certificates": 2,
+    "total_score": 240,
+    "average_confidence": 84.9,
+    "last_submission": "2026-05-11T21:00:00"
+  }
+]
