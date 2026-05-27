@@ -23,15 +23,15 @@ export default function RankingPage() {
         setLoading(true)
         setError('')
 
-        const response = await fetch(`${API_URL}/api/ranking`)
+        // const response = await fetch(`${API_URL}/api/ranking`)
 
-        if (!response.ok) {
-          throw new Error('Não foi possível carregar o ranking')
-        }
+        // if (!response.ok) {
+        //   throw new Error('Não foi possível carregar o ranking')
+        // }
 
-        const data = await response.json()
-        setRanking(data.ranking || [])
-        // setRanking(rankingMock)
+        // const data = await response.json()
+        // setRanking(data.ranking || [])
+        setRanking(rankingMock)
       } catch (err) {
         setError(err.message)
       } finally {
