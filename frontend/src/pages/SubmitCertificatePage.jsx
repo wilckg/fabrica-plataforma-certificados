@@ -55,7 +55,7 @@ export default function SubmitCertificatePage() {
       formData.append('course_title', form.course_title)
       formData.append('certificate', file)
 
-      const response = await fetch('http://localhost:5000/api/submissions', {
+      const response = await fetch('https://fabrica-plataforma-certificados-backend.onrender.com//api/submissions', {
         method: 'POST',
         body: formData
       })

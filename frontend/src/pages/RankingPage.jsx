@@ -10,7 +10,7 @@ import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
 import rankingMock from '../data/rankingMock.json'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_URL = import.meta.env.VITE_API_URL || 'https://fabrica-plataforma-certificados-backend.onrender.com'
 
 export default function RankingPage() {
   const [ranking, setRanking] = useState([])
