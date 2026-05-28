@@ -81,6 +81,15 @@ def parse_json_response(text):
         return None
 
 
+def mask_cpf(cpf):
+    cpf = only_numbers(cpf)
+
+    if len(cpf) != 11:
+        return "***.***.***-**"
+
+    return f"{cpf[:3]}.***.***-{cpf[-2:]}"
+
+
 def analyze_certificate_with_gemini(pdf_bytes, student_name, student_cpf):
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY não configurada.")
@@ -462,8 +471,8 @@ def ranking():
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT
-                    student_name,
                     student_cpf,
+                    MAX(student_name) AS student_name,
                     COUNT(*) AS valid_certificates,
                     SUM(ai_score) AS total_score,
                     AVG(ai_confidence) AS average_confidence,
@@ -472,7 +481,7 @@ def ranking():
                 WHERE
                     status = 'analisado'
                     AND ranking_should_count = TRUE
-                GROUP BY student_name, student_cpf
+                GROUP BY student_cpf
                 ORDER BY
                     valid_certificates DESC,
                     total_score DESC,
@@ -488,7 +497,7 @@ def ranking():
         ranking_data.append({
             "position": index,
             "student_name": row["student_name"],
-            "student_cpf": row["student_cpf"],
+            "student_cpf_masked": mask_cpf(row["student_cpf"]),
             "valid_certificates": int(row["valid_certificates"] or 0),
             "total_score": int(row["total_score"] or 0),
             "average_confidence": float(row["average_confidence"] or 0),

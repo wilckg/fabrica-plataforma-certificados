@@ -5,12 +5,14 @@ import {
   HiOutlineSparkles,
   HiOutlineUserCircle
 } from 'react-icons/hi2'
+import { LuCrown } from "react-icons/lu";
+
 
 import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
 import rankingMock from '../data/rankingMock.json'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://fabrica-plataforma-certificados-backend.onrender.com/'
+const API_URL = import.meta.env.VITE_API_URL || 'https://fabrica-plataforma-certificados-backend.onrender.com'
 
 export default function RankingPage() {
   const [ranking, setRanking] = useState([])
@@ -122,12 +124,18 @@ export default function RankingPage() {
 
                 return (
                   <article
-                    key={`${student.student_cpf}-${student.position}`}
+                    key={`${student.student_cpf_masked}-${student.position}`}
                     className={`ranking-podium-card podium-${student.position}`}
                   >
                     <div className="podium-medal">
                       {medal}
                     </div>
+
+                    {student.position === 1 && (
+                      <div className="leader-crown">
+                        <LuCrown />
+                      </div>
+                    )}
 
                     <span className="ranking-position">
                       #{student.position}
@@ -135,7 +143,13 @@ export default function RankingPage() {
 
                     <HiOutlineUserCircle className="ranking-avatar" />
 
-                    <h3>{student.student_name}</h3>
+                    <div className="podium-name-wrapper">
+                      <h3>{student.student_name}</h3>
+                    </div>
+
+                    <span className="podium-cpf">
+                      {student.student_cpf_masked}
+                    </span>
 
                     <p>
                       {student.valid_certificates} certificados válidos
@@ -151,7 +165,7 @@ export default function RankingPage() {
             <div className="ranking-list">
               {ranking.map((student) => (
                 <div
-                  key={`${student.student_cpf}-${student.position}`}
+                  key={`${student.student_cpf_masked}-${student.position}`}
                   className="ranking-row"
                 >
                   <div className="ranking-row-left">
@@ -159,8 +173,18 @@ export default function RankingPage() {
                       #{student.position}
                     </span>
 
-                    <div>
-                      <strong>{student.student_name}</strong>
+                    <div className="ranking-student-info">
+                      <div className="ranking-name-wrapper">
+                        <strong>{student.student_name}</strong>
+
+                        {student.position === 1 && (
+                          <LuCrown className="ranking-leader-crown" />
+                        )}
+                      </div>
+
+                      <span className="ranking-student-cpf">
+                        CPF: {student.student_cpf_masked}
+                      </span>
                     </div>
                   </div>
 
