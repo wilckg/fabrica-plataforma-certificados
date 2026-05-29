@@ -89,6 +89,34 @@ def mask_cpf(cpf):
 
     return f"{cpf[:3]}.***.***-{cpf[-2:]}"
 
+def update_student_ranking(cur, student_cpf, student_name, ai_score, ai_confidence):
+    cur.execute("""
+        INSERT INTO student_ranking (
+            student_cpf,
+            student_name,
+            valid_certificates,
+            total_score,
+            average_confidence,
+            last_submission
+        )
+        VALUES (%s, %s, 1, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (student_cpf)
+        DO UPDATE SET
+            student_name = EXCLUDED.student_name,
+            valid_certificates = student_ranking.valid_certificates + 1,
+            total_score = student_ranking.total_score + EXCLUDED.total_score,
+            average_confidence =
+                (
+                    (student_ranking.average_confidence * student_ranking.valid_certificates)
+                    + EXCLUDED.average_confidence
+                ) / (student_ranking.valid_certificates + 1),
+            last_submission = CURRENT_TIMESTAMP
+    """, (
+        student_cpf,
+        student_name,
+        ai_score,
+        ai_confidence
+    ))
 
 def analyze_certificate_with_gemini(pdf_bytes, student_name, student_cpf):
     if not GEMINI_API_KEY:
@@ -414,6 +442,16 @@ def create_submission():
             ))
 
             new_submission = cur.fetchone()
+
+            if ranking_should_count:
+                update_student_ranking(
+                    cur=cur,
+                    student_cpf=student_cpf,
+                    student_name=student_name,
+                    ai_score=ai_score,
+                    ai_confidence=ai_confidence
+                )
+
             conn.commit()
 
     return jsonify({
@@ -467,33 +505,44 @@ def list_submissions():
 
 @app.route("/api/ranking", methods=["GET"])
 def ranking():
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 10))
+
+    if page < 1:
+        page = 1
+
+    if limit < 1 or limit > 50:
+        limit = 10
+
+    offset = (page - 1) * limit
+
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT COUNT(*) AS total FROM student_ranking")
+            total = cur.fetchone()["total"]
+
             cur.execute("""
                 SELECT
+                    student_name,
                     student_cpf,
-                    MAX(student_name) AS student_name,
-                    COUNT(*) AS valid_certificates,
-                    SUM(ai_score) AS total_score,
-                    AVG(ai_confidence) AS average_confidence,
-                    MAX(created_at) AS last_submission
-                FROM submissions
-                WHERE
-                    status = 'analisado'
-                    AND ranking_should_count = TRUE
-                GROUP BY student_cpf
+                    valid_certificates,
+                    total_score,
+                    average_confidence,
+                    last_submission
+                FROM student_ranking
                 ORDER BY
                     valid_certificates DESC,
                     total_score DESC,
                     average_confidence DESC,
                     last_submission ASC
-            """)
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
 
             rows = cur.fetchall()
 
     ranking_data = []
 
-    for index, row in enumerate(rows, start=1):
+    for index, row in enumerate(rows, start=offset + 1):
         ranking_data.append({
             "position": index,
             "student_name": row["student_name"],
@@ -505,7 +554,13 @@ def ranking():
         })
 
     return jsonify({
-        "ranking": ranking_data
+        "ranking": ranking_data,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "total_pages": (total + limit - 1) // limit
+        }
     }), 200
 
 
