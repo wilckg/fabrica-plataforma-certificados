@@ -1159,6 +1159,35 @@ a {
   font-size: 1rem;
 }
 
+.ranking-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.ranking-pagination button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.ranking-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ranking-pagination span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
 @keyframes crownGlow {
   0% {
     transform: translateY(0px) scale(1);

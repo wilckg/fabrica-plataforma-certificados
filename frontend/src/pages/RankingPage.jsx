@@ -5,19 +5,21 @@ import {
   HiOutlineSparkles,
   HiOutlineUserCircle
 } from 'react-icons/hi2'
-import { LuCrown } from "react-icons/lu";
-
+import { LuCrown } from 'react-icons/lu'
 
 import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
-import rankingMock from '../data/rankingMock.json'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://fabrica-plataforma-certificados-backend.onrender.com'
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  'https://fabrica-plataforma-certificados-backend.onrender.com'
 
 export default function RankingPage() {
   const [ranking, setRanking] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
 
   useEffect(() => {
     async function loadRanking() {
@@ -25,15 +27,16 @@ export default function RankingPage() {
         setLoading(true)
         setError('')
 
-        const response = await fetch(`${API_URL}/api/ranking`)
+        const response = await fetch(`${API_URL}/api/ranking?page=${page}&limit=10`)
 
         if (!response.ok) {
           throw new Error('Não foi possível carregar o ranking')
         }
 
         const data = await response.json()
+
         setRanking(data.ranking || [])
-        // setRanking(rankingMock)
+        setPagination(data.pagination || null)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -42,7 +45,7 @@ export default function RankingPage() {
     }
 
     loadRanking()
-  }, [])
+  }, [page])
 
   const top3 = useMemo(() => ranking.slice(0, 3), [ranking])
 
@@ -57,12 +60,7 @@ export default function RankingPage() {
 
   function formatDate(dateValue) {
     if (!dateValue) return 'Sem data'
-
     return new Date(dateValue).toLocaleDateString('pt-BR')
-  }
-
-  function formatConfidence(value) {
-    return `${Number(value || 0).toFixed(1)}%`
   }
 
   return (
@@ -74,34 +72,14 @@ export default function RankingPage() {
       />
 
       <div className="stats-grid compact-grid fade-in-up">
-        <StatCard
-          icon={<HiOutlineTrophy />}
-          label="Líder atual"
-          value={leaderName}
-        />
-
-        <StatCard
-          icon={<HiOutlineFire />}
-          label="Certificados válidos"
-          value={totalCertificates}
-        />
-
-        <StatCard
-          icon={<HiOutlineSparkles />}
-          label="Critério"
-          value="Certificados"
-        />
+        <StatCard icon={<HiOutlineTrophy />} label="Líder atual" value={leaderName} />
+        <StatCard icon={<HiOutlineFire />} label="Certificados válidos" value={totalCertificates} />
+        <StatCard icon={<HiOutlineSparkles />} label="Critério" value="Certificados" />
       </div>
 
-      {loading && (
-        <div className="empty-state">
-          Carregando ranking...
-        </div>
-      )}
+      {loading && <div className="empty-state">Carregando ranking...</div>}
 
-      {error && (
-        <p className="error">{error}</p>
-      )}
+      {error && <p className="error">{error}</p>}
 
       {!loading && !error && !ranking.length && (
         <div className="empty-state">
@@ -127,9 +105,7 @@ export default function RankingPage() {
                     key={`${student.student_cpf_masked}-${student.position}`}
                     className={`ranking-podium-card podium-${student.position}`}
                   >
-                    <div className="podium-medal">
-                      {medal}
-                    </div>
+                    <div className="podium-medal">{medal}</div>
 
                     {student.position === 1 && (
                       <div className="leader-crown">
@@ -137,9 +113,7 @@ export default function RankingPage() {
                       </div>
                     )}
 
-                    <span className="ranking-position">
-                      #{student.position}
-                    </span>
+                    <span className="ranking-position">#{student.position}</span>
 
                     <HiOutlineUserCircle className="ranking-avatar" />
 
@@ -151,9 +125,7 @@ export default function RankingPage() {
                       {student.student_cpf_masked}
                     </span>
 
-                    <p>
-                      {student.valid_certificates} certificados válidos
-                    </p>
+                    <p>{student.valid_certificates} certificados válidos</p>
                   </article>
                 )
               })}
@@ -189,9 +161,7 @@ export default function RankingPage() {
                   </div>
 
                   <div className="ranking-row-right">
-                    <strong>
-                      {student.valid_certificates} certificados
-                    </strong>
+                    <strong>{student.valid_certificates} certificados</strong>
 
                     <small>
                       Último envio: {formatDate(student.last_submission)}
@@ -200,6 +170,30 @@ export default function RankingPage() {
                 </div>
               ))}
             </div>
+
+            {pagination && pagination.total_pages > 1 && (
+              <div className="ranking-pagination">
+                <button
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage((current) => current - 1)}
+                >
+                  Anterior
+                </button>
+
+                <span>
+                  Página {pagination.page} de {pagination.total_pages}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={page === pagination.total_pages}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Próxima
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
