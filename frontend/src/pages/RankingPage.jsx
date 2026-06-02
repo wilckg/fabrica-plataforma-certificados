@@ -14,12 +14,13 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://fabrica-plataforma-certificados-backend.onrender.com'
 
+const ITEMS_PER_PAGE = 10
+
 export default function RankingPage() {
   const [ranking, setRanking] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState(null)
 
   useEffect(() => {
     async function loadRanking() {
@@ -27,16 +28,14 @@ export default function RankingPage() {
         setLoading(true)
         setError('')
 
-        const response = await fetch(`${API_URL}/api/ranking?page=${page}&limit=10`)
+        const response = await fetch(`${API_URL}/api/ranking`)
 
         if (!response.ok) {
           throw new Error('Não foi possível carregar o ranking')
         }
 
         const data = await response.json()
-
         setRanking(data.ranking || [])
-        setPagination(data.pagination || null)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -45,7 +44,7 @@ export default function RankingPage() {
     }
 
     loadRanking()
-  }, [page])
+  }, [])
 
   const top3 = useMemo(() => ranking.slice(0, 3), [ranking])
 
@@ -57,6 +56,17 @@ export default function RankingPage() {
   }, [ranking])
 
   const leaderName = ranking[0]?.student_name || '--'
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(ranking.length / ITEMS_PER_PAGE)
+  }, [ranking])
+
+  const paginatedRanking = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE
+    const end = start + ITEMS_PER_PAGE
+
+    return ranking.slice(start, end)
+  }, [ranking, page])
 
   function formatDate(dateValue) {
     if (!dateValue) return 'Sem data'
@@ -135,7 +145,7 @@ export default function RankingPage() {
             <h3>Classificação geral</h3>
 
             <div className="ranking-list">
-              {ranking.map((student) => (
+              {paginatedRanking.map((student) => (
                 <div
                   key={`${student.student_cpf_masked}-${student.position}`}
                   className="ranking-row"
@@ -171,7 +181,7 @@ export default function RankingPage() {
               ))}
             </div>
 
-            {pagination && pagination.total_pages > 1 && (
+            {totalPages > 1 && (
               <div className="ranking-pagination">
                 <button
                   type="button"
@@ -182,12 +192,12 @@ export default function RankingPage() {
                 </button>
 
                 <span>
-                  Página {pagination.page} de {pagination.total_pages}
+                  Página {page} de {totalPages}
                 </span>
 
                 <button
                   type="button"
-                  disabled={page === pagination.total_pages}
+                  disabled={page === totalPages}
                   onClick={() => setPage((current) => current + 1)}
                 >
                   Próxima
