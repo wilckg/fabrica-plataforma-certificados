@@ -348,6 +348,16 @@ def create_submission():
     file_hash = calculate_file_hash(pdf_bytes)
     safe_filename = secure_filename(certificate.filename)
 
+    existing = None
+    can_retry = False
+
+    failed_statuses = {
+        "erro_analise",
+        "erro_autenticacao",
+        "falha_autenticacao",
+        "erro_gemini"
+    }
+
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
@@ -356,24 +366,40 @@ def create_submission():
                     student_name,
                     student_cpf,
                     original_filename,
+                    status,
+                    ai_status,
+                    ranking_should_count,
                     created_at
                 FROM submissions
                 WHERE file_hash = %s
+                ORDER BY created_at DESC
+                LIMIT 1
             """, (file_hash,))
 
             existing = cur.fetchone()
 
-            if existing:
-                return jsonify({
-                    "error": "Este certificado já foi enviado anteriormente.",
-                    "submission": {
-                        "id": existing["id"],
-                        "student_name": existing["student_name"],
-                        "student_cpf": existing["student_cpf"],
-                        "original_filename": existing["original_filename"],
-                        "created_at": str(existing["created_at"])
-                    }
-                }), 409
+    if existing:
+        previous_ai_status = existing["ai_status"]
+        previous_ranking_should_count = existing["ranking_should_count"]
+
+        can_retry = (
+            previous_ai_status in failed_statuses
+            or previous_ranking_should_count is False
+            or previous_ranking_should_count is None
+        )
+
+        if not can_retry:
+            return jsonify({
+                "error": "Este certificado já foi enviado anteriormente.",
+                "submission": {
+                    "id": existing["id"],
+                    "student_name": existing["student_name"],
+                    "student_cpf": mask_cpf(existing["student_cpf"]),
+                    "original_filename": existing["original_filename"],
+                    "ai_status": existing["ai_status"],
+                    "created_at": str(existing["created_at"])
+                }
+            }), 409
 
     try:
         ai_result = analyze_certificate_with_gemini(
@@ -410,6 +436,52 @@ def create_submission():
     ai_score = int(ai_result.get("score", 0) or 0)
     ranking_should_count = bool(ai_result.get("ranking_should_count", False))
 
+    if existing and can_retry:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    UPDATE submissions
+                    SET
+                        student_name = %s,
+                        student_cpf = %s,
+                        original_filename = %s,
+                        status = %s,
+                        ai_status = %s,
+                        ai_confidence = %s,
+                        ai_score = %s,
+                        ai_analysis = %s,
+                        ranking_should_count = %s,
+                        created_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    RETURNING id, created_at
+                """, (
+                    student_name,
+                    student_cpf,
+                    safe_filename,
+                    "analisado",
+                    ai_status,
+                    ai_confidence,
+                    ai_score,
+                    json.dumps(ai_result, ensure_ascii=False),
+                    ranking_should_count,
+                    existing["id"]
+                ))
+
+                updated_submission = cur.fetchone()
+                conn.commit()
+
+        return jsonify({
+            "message": "Certificado reenviado e reprocessado com sucesso.",
+            "submission_id": updated_submission["id"],
+            "status": "analisado",
+            "ranking_should_count": ranking_should_count,
+            "ai_status": ai_status,
+            "ai_confidence": ai_confidence,
+            "ai_score": ai_score,
+            "ai_analysis": ai_result,
+            "created_at": str(updated_submission["created_at"])
+        }), 200
+
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
@@ -442,16 +514,6 @@ def create_submission():
             ))
 
             new_submission = cur.fetchone()
-
-            if ranking_should_count:
-                update_student_ranking(
-                    cur=cur,
-                    student_cpf=student_cpf,
-                    student_name=student_name,
-                    ai_score=ai_score,
-                    ai_confidence=ai_confidence
-                )
-
             conn.commit()
 
     return jsonify({
