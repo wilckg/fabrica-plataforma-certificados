@@ -567,8 +567,13 @@ def list_submissions():
 
 @app.route("/api/ranking", methods=["GET"])
 def ranking():
-    page = int(request.args.get("page", 1))
-    limit = int(request.args.get("limit", 10))
+    page_param = request.args.get("page")
+    limit_param = request.args.get("limit")
+
+    use_pagination = page_param is not None or limit_param is not None
+
+    page = int(page_param or 1)
+    limit = int(limit_param or 10)
 
     if page < 1:
         page = 1
@@ -583,28 +588,45 @@ def ranking():
             cur.execute("SELECT COUNT(*) AS total FROM student_ranking")
             total = cur.fetchone()["total"]
 
-            cur.execute("""
-                SELECT
-                    student_name,
-                    student_cpf,
-                    valid_certificates,
-                    total_score,
-                    average_confidence,
-                    last_submission
-                FROM student_ranking
-                ORDER BY
-                    valid_certificates DESC,
-                    total_score DESC,
-                    average_confidence DESC,
-                    last_submission ASC
-                LIMIT %s OFFSET %s
-            """, (limit, offset))
+            if use_pagination:
+                cur.execute("""
+                    SELECT
+                        student_name,
+                        student_cpf,
+                        valid_certificates,
+                        total_score,
+                        average_confidence,
+                        last_submission
+                    FROM student_ranking
+                    ORDER BY
+                        valid_certificates DESC,
+                        total_score DESC,
+                        average_confidence DESC,
+                        last_submission ASC
+                    LIMIT %s OFFSET %s
+                """, (limit, offset))
+            else:
+                cur.execute("""
+                    SELECT
+                        student_name,
+                        student_cpf,
+                        valid_certificates,
+                        total_score,
+                        average_confidence,
+                        last_submission
+                    FROM student_ranking
+                    ORDER BY
+                        valid_certificates DESC,
+                        total_score DESC,
+                        average_confidence DESC,
+                        last_submission ASC
+                """)
 
             rows = cur.fetchall()
 
     ranking_data = []
 
-    for index, row in enumerate(rows, start=offset + 1):
+    for index, row in enumerate(rows, start=offset + 1 if use_pagination else 1):
         ranking_data.append({
             "position": index,
             "student_name": row["student_name"],
@@ -615,15 +637,25 @@ def ranking():
             "last_submission": str(row["last_submission"])
         })
 
-    return jsonify({
+    response = {
         "ranking": ranking_data,
-        "pagination": {
+        "summary": {
+            "total_students": int(total or 0),
+            "total_certificates": sum(
+                item["valid_certificates"] for item in ranking_data
+            )
+        }
+    }
+
+    if use_pagination:
+        response["pagination"] = {
             "page": page,
             "limit": limit,
             "total": total,
             "total_pages": (total + limit - 1) // limit
         }
-    }), 200
+
+    return jsonify(response), 200
 
 
 try:
