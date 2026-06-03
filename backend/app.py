@@ -567,66 +567,33 @@ def list_submissions():
 
 @app.route("/api/ranking", methods=["GET"])
 def ranking():
-    page_param = request.args.get("page")
-    limit_param = request.args.get("limit")
-
-    use_pagination = page_param is not None or limit_param is not None
-
-    page = int(page_param or 1)
-    limit = int(limit_param or 10)
-
-    if page < 1:
-        page = 1
-
-    if limit < 1 or limit > 50:
-        limit = 10
-
-    offset = (page - 1) * limit
-
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT COUNT(*) AS total FROM student_ranking")
-            total = cur.fetchone()["total"]
-
-            if use_pagination:
-                cur.execute("""
-                    SELECT
-                        student_name,
-                        student_cpf,
-                        valid_certificates,
-                        total_score,
-                        average_confidence,
-                        last_submission
-                    FROM student_ranking
-                    ORDER BY
-                        valid_certificates DESC,
-                        total_score DESC,
-                        average_confidence DESC,
-                        last_submission ASC
-                    LIMIT %s OFFSET %s
-                """, (limit, offset))
-            else:
-                cur.execute("""
-                    SELECT
-                        student_name,
-                        student_cpf,
-                        valid_certificates,
-                        total_score,
-                        average_confidence,
-                        last_submission
-                    FROM student_ranking
-                    ORDER BY
-                        valid_certificates DESC,
-                        total_score DESC,
-                        average_confidence DESC,
-                        last_submission ASC
-                """)
+            cur.execute("""
+                SELECT
+                    student_cpf,
+                    MAX(student_name) AS student_name,
+                    COUNT(*) AS valid_certificates,
+                    COALESCE(SUM(ai_score), 0) AS total_score,
+                    COALESCE(AVG(ai_confidence), 0) AS average_confidence,
+                    MIN(created_at) AS first_submission,
+                    MAX(created_at) AS last_submission
+                FROM submissions
+                WHERE
+                    status = 'analisado'
+                    AND ranking_should_count = TRUE
+                GROUP BY student_cpf
+                ORDER BY
+                    COUNT(*) DESC,
+                    COALESCE(SUM(ai_score), 0) DESC,
+                    MIN(created_at) ASC
+            """)
 
             rows = cur.fetchall()
 
     ranking_data = []
 
-    for index, row in enumerate(rows, start=offset + 1 if use_pagination else 1):
+    for index, row in enumerate(rows, start=1):
         ranking_data.append({
             "position": index,
             "student_name": row["student_name"],
@@ -634,28 +601,19 @@ def ranking():
             "valid_certificates": int(row["valid_certificates"] or 0),
             "total_score": int(row["total_score"] or 0),
             "average_confidence": float(row["average_confidence"] or 0),
+            "first_submission": str(row["first_submission"]),
             "last_submission": str(row["last_submission"])
         })
 
-    response = {
+    return jsonify({
         "ranking": ranking_data,
         "summary": {
-            "total_students": int(total or 0),
+            "total_students": len(ranking_data),
             "total_certificates": sum(
-                item["valid_certificates"] for item in ranking_data
+                student["valid_certificates"] for student in ranking_data
             )
         }
-    }
-
-    if use_pagination:
-        response["pagination"] = {
-            "page": page,
-            "limit": limit,
-            "total": total,
-            "total_pages": (total + limit - 1) // limit
-        }
-
-    return jsonify(response), 200
+    }), 200
 
 
 try:
