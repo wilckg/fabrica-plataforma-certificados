@@ -906,6 +906,17 @@ a {
   color: #60758a;
 }
 
+.button:disabled,
+.input:disabled,
+.upload-label.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button.loading {
+  pointer-events: none;
+}
+
 .ranking-podium {
   display: grid;
   grid-template-columns: 1fr 1.2fr 1fr;

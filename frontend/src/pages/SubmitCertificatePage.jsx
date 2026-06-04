@@ -4,6 +4,10 @@ import SectionTitle from '../components/SectionTitle'
 import StatCard from '../components/StatCard'
 import rawCourses from '../data/courses.json'
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  'https://fabrica-plataforma-certificados-backend.onrender.com'
+
 export default function SubmitCertificatePage() {
   const [form, setForm] = useState({
     student_name: '',
@@ -14,6 +18,7 @@ export default function SubmitCertificatePage() {
   const [file, setFile] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const courses = useMemo(() => {
     const list = rawCourses.courses || rawCourses
@@ -45,17 +50,27 @@ export default function SubmitCertificatePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+
+    if (isSubmitting) return
+
     setMessage('')
     setError('')
 
+    if (!file) {
+      setError('Selecione um certificado para enviar.')
+      return
+    }
+
     try {
+      setIsSubmitting(true)
+
       const formData = new FormData()
       formData.append('student_name', form.student_name)
       formData.append('student_cpf', form.student_cpf)
       formData.append('course_title', form.course_title)
       formData.append('certificate', file)
 
-      const response = await fetch('https://fabrica-plataforma-certificados-backend.onrender.com/api/submissions', {
+      const response = await fetch(`${API_URL}/api/submissions`, {
         method: 'POST',
         body: formData
       })
@@ -66,7 +81,7 @@ export default function SubmitCertificatePage() {
         throw new Error(data.error || 'Erro ao enviar certificado')
       }
 
-      setMessage('Certificado enviado com sucesso!')
+      setMessage(data.message || 'Certificado enviado com sucesso!')
 
       setForm({
         student_name: '',
@@ -75,8 +90,12 @@ export default function SubmitCertificatePage() {
       })
 
       setFile(null)
+
+      e.target.reset()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -98,7 +117,7 @@ export default function SubmitCertificatePage() {
         <StatCard
           icon={<HiOutlineDocumentCheck />}
           label="Validação"
-          value="Pendente"
+          value={isSubmitting ? 'Analisando' : 'Pendente'}
         />
       </div>
 
@@ -111,6 +130,7 @@ export default function SubmitCertificatePage() {
               placeholder="Seu nome completo"
               value={form.student_name}
               onChange={handleChange}
+              disabled={isSubmitting}
               required
             />
 
@@ -122,6 +142,7 @@ export default function SubmitCertificatePage() {
               onChange={handleChange}
               inputMode="numeric"
               maxLength="14"
+              disabled={isSubmitting}
               required
             />
           </div>
@@ -131,6 +152,7 @@ export default function SubmitCertificatePage() {
             name="course_title"
             value={form.course_title}
             onChange={handleChange}
+            disabled={isSubmitting}
             required
           >
             <option value="">Selecione um curso</option>
@@ -149,10 +171,14 @@ export default function SubmitCertificatePage() {
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"
               onChange={(e) => setFile(e.target.files[0])}
+              disabled={isSubmitting}
               required
             />
 
-            <label htmlFor="certificate" className="upload-label">
+            <label
+              htmlFor="certificate"
+              className={`upload-label ${isSubmitting ? 'disabled' : ''}`}
+            >
               <HiOutlineCloudArrowUp className="upload-icon" />
 
               <strong>
@@ -165,8 +191,12 @@ export default function SubmitCertificatePage() {
             </label>
           </div>
 
-          <button className="button" type="submit">
-            Enviar certificado
+          <button
+            className={`button ${isSubmitting ? 'loading' : ''}`}
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Analisando certificado...' : 'Enviar certificado'}
           </button>
         </form>
 
