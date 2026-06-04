@@ -585,8 +585,8 @@ def ranking():
                 GROUP BY student_cpf
                 ORDER BY
                     COUNT(*) DESC,
-                    COALESCE(SUM(ai_score), 0) DESC,
-                    MIN(created_at) ASC
+                    MAX(created_at) ASC,
+                    COALESCE(SUM(ai_score), 0) DESC
             """)
 
             rows = cur.fetchall()
